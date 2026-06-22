@@ -17,4 +17,12 @@ typedef struct {
     int mark_count;
 } TargetTrack;
 
+typedef enum {
+    PARSE_MARK_OK,
+    PARSE_MARK_SKIP,
+    PARSE_MARK_INVALID
+} ParseMarkResult;
+
+ParseMarkResult parse_radar_mark_line(const char *line, RadarMark *mark);
+
 #endif
