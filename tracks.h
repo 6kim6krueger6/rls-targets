@@ -17,12 +17,28 @@ typedef struct {
     int mark_count;
 } TargetTrack;
 
+typedef struct {
+    TargetTrack targets[MAX_TARGETS];
+    int target_count;
+    int total_mark_count;
+    int duplicate_count;
+} TrackCollection;
+
 typedef enum {
     PARSE_MARK_OK,
     PARSE_MARK_SKIP,
     PARSE_MARK_INVALID
 } ParseMarkResult;
 
+typedef enum {
+    ADD_MARK_ADDED,
+    ADD_MARK_DUPLICATE,
+    ADD_MARK_NO_TARGET_SPACE,
+    ADD_MARK_NO_MARK_SPACE
+} AddMarkResult;
+
 ParseMarkResult parse_radar_mark_line(const char *line, RadarMark *mark);
+void init_track_collection(TrackCollection *collection);
+AddMarkResult add_radar_mark(TrackCollection *collection, const RadarMark *mark);
 
 #endif

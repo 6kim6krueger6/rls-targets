@@ -56,6 +56,32 @@ static int read_double_field(const char **cursor, double *value)
     return 1;
 }
 
+static TargetTrack *find_track(TrackCollection *collection, int target_id)
+{
+    int index = 0;
+
+    for (index = 0; index < collection->target_count; ++index) {
+        if (collection->targets[index].target_id == target_id) {
+            return &collection->targets[index];
+        }
+    }
+
+    return NULL;
+}
+
+static RadarMark *find_mark_by_time(TargetTrack *track, int time_ms)
+{
+    int index = 0;
+
+    for (index = 0; index < track->mark_count; ++index) {
+        if (track->marks[index].time_ms == time_ms) {
+            return &track->marks[index];
+        }
+    }
+
+    return NULL;
+}
+
 ParseMarkResult parse_radar_mark_line(const char *line, RadarMark *mark)
 {
     RadarMark parsed;
@@ -88,4 +114,50 @@ ParseMarkResult parse_radar_mark_line(const char *line, RadarMark *mark)
 
     *mark = parsed;
     return PARSE_MARK_OK;
+}
+
+void init_track_collection(TrackCollection *collection)
+{
+    collection->target_count = 0;
+    collection->total_mark_count = 0;
+    collection->duplicate_count = 0;
+}
+
+AddMarkResult add_radar_mark(TrackCollection *collection, const RadarMark *mark)
+{
+    TargetTrack *track = find_track(collection, mark->target_id);
+    RadarMark *duplicate = NULL;
+
+    if (track == NULL && collection->total_mark_count >= MAX_MARKS) {
+        return ADD_MARK_NO_MARK_SPACE;
+    }
+
+    if (track == NULL) {
+        if (collection->target_count >= MAX_TARGETS) {
+            return ADD_MARK_NO_TARGET_SPACE;
+        }
+
+        track = &collection->targets[collection->target_count];
+        track->target_id = mark->target_id;
+        track->mark_count = 0;
+        ++collection->target_count;
+    }
+
+    duplicate = find_mark_by_time(track, mark->time_ms);
+    if (duplicate != NULL) {
+        if (mark->range_m < duplicate->range_m) {
+            *duplicate = *mark;
+        }
+        ++collection->duplicate_count;
+        return ADD_MARK_DUPLICATE;
+    }
+
+    if (collection->total_mark_count >= MAX_MARKS || track->mark_count >= MAX_MARKS) {
+        return ADD_MARK_NO_MARK_SPACE;
+    }
+
+    track->marks[track->mark_count] = *mark;
+    ++track->mark_count;
+    ++collection->total_mark_count;
+    return ADD_MARK_ADDED;
 }

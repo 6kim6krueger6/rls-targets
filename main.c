@@ -21,6 +21,7 @@ int main(int argc, char *argv[])
     int read_count = 0;
     int accepted_count = 0;
     int skipped_count = 0;
+    TrackCollection tracks;
 
     if (argc != 2) {
         fprintf(stderr, "Ошибка: укажите ровно один файл журнала\n");
@@ -33,9 +34,12 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    init_track_collection(&tracks);
+
     while (fgets(line, sizeof(line), input) != NULL) {
         RadarMark mark;
         ParseMarkResult result;
+        AddMarkResult add_result;
         int line_too_long = strchr(line, '\n') == NULL && !feof(input);
 
         ++line_number;
@@ -53,8 +57,22 @@ int main(int argc, char *argv[])
         }
 
         ++read_count;
-        if (result == PARSE_MARK_OK) {
+        if (result != PARSE_MARK_OK) {
+            ++skipped_count;
+            fprintf(stderr, "Строка %d: некорректная запись\n", line_number);
+            continue;
+        }
+
+        add_result = add_radar_mark(&tracks, &mark);
+        if (add_result == ADD_MARK_ADDED) {
             ++accepted_count;
+        } else if (add_result == ADD_MARK_DUPLICATE) {
+            ++accepted_count;
+            fprintf(stderr,
+                    "Строка %d: дубль цели %d во время %d мс\n",
+                    line_number,
+                    mark.target_id,
+                    mark.time_ms);
         } else {
             ++skipped_count;
             fprintf(stderr, "Строка %d: некорректная запись\n", line_number);
