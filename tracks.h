@@ -40,6 +40,14 @@ typedef struct {
     int count;
 } AnalysisReport;
 
+typedef struct {
+    int use_sector;
+    double sector_from_deg;
+    double sector_to_deg;
+    int use_top;
+    int top_count;
+} ReportOptions;
+
 typedef enum {
     PARSE_MARK_OK,
     PARSE_MARK_SKIP,
@@ -57,5 +65,9 @@ ParseMarkResult parse_radar_mark_line(const char *line, RadarMark *mark);
 void init_track_collection(TrackCollection *collection);
 AddMarkResult add_radar_mark(TrackCollection *collection, const RadarMark *mark);
 void prepare_track_analysis(TrackCollection *collection, AnalysisReport *report);
+void render_analysis_report(const char *input_path,
+                            const TrackCollection *collection,
+                            const AnalysisReport *report,
+                            const ReportOptions *options);
 
 #endif

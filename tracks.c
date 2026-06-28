@@ -3,7 +3,9 @@
 #include <errno.h>
 #include <limits.h>
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 static const char *skip_spaces_and_tabs(const char *text)
 {
@@ -265,4 +267,120 @@ void prepare_track_analysis(TrackCollection *collection, AnalysisReport *report)
     }
 
     sort_analysis_by_min_range_selection(report->items, report->count);
+}
+
+static const char *basename_path(const char *path)
+{
+    const char *slash = strrchr(path, '/');
+
+    if (slash != NULL) {
+        return slash + 1;
+    }
+
+    return path;
+}
+
+static int target_in_sector(const TargetAnalysis *analysis,
+                            double sector_from_deg,
+                            double sector_to_deg)
+{
+    double azimuth = analysis->avg_azimuth_deg;
+
+    if (sector_from_deg <= sector_to_deg) {
+        return azimuth >= sector_from_deg && azimuth <= sector_to_deg;
+    }
+
+    return azimuth >= sector_from_deg || azimuth <= sector_to_deg;
+}
+
+static void format_speed_text(const TargetAnalysis *analysis, char *buffer, size_t size)
+{
+    if (!analysis->has_speed) {
+        snprintf(buffer, size, "--");
+        return;
+    }
+
+    if (analysis->speed_mps >= 0.0) {
+        snprintf(buffer, size, "+%.1f", analysis->speed_mps);
+    } else {
+        snprintf(buffer, size, "%.1f", analysis->speed_mps);
+    }
+}
+
+void render_analysis_report(const char *input_path,
+                            const TrackCollection *collection,
+                            const AnalysisReport *report,
+                            const ReportOptions *options)
+{
+    TargetAnalysis filtered[MAX_TARGETS];
+    int filtered_count = 0;
+    int shown_count = 0;
+    int index = 0;
+
+    for (index = 0; index < report->count; ++index) {
+        const TargetAnalysis *item = &report->items[index];
+
+        if (options->use_sector &&
+            !target_in_sector(item, options->sector_from_deg, options->sector_to_deg)) {
+            continue;
+        }
+
+        filtered[filtered_count++] = *item;
+    }
+
+    shown_count = filtered_count;
+    if (options->use_top && options->top_count < shown_count) {
+        shown_count = options->top_count;
+    }
+
+    printf("=== Отчёт по журналу: %s ===\n", basename_path(input_path));
+    printf("Всего целей: %d  |  Всего отметок: %d  |  Дублей: %d\n",
+           collection->target_count,
+           collection->total_mark_count,
+           collection->duplicate_count);
+    printf("\n");
+
+    if (options->use_sector) {
+        printf("Фильтр: сектор %.1f° — %.1f°  (показаны %d из %d целей)\n",
+               options->sector_from_deg,
+               options->sector_to_deg,
+               shown_count,
+               report->count);
+        printf("\n");
+    }
+
+    printf("ID  Отметок  Дальн.мин(м)  Дальн.макс(м)  Азимут.ср(°)  Скорость(м/с)\n");
+    printf("---  -------  ------------  -------------  ------------  -------------\n");
+
+    for (index = 0; index < shown_count; ++index) {
+        const TargetAnalysis *item = &filtered[index];
+        char azimuth_text[16];
+        char speed_text[16];
+
+        snprintf(azimuth_text, sizeof(azimuth_text), "%.1f°", item->avg_azimuth_deg);
+        format_speed_text(item, speed_text, sizeof(speed_text));
+
+        printf("%-3d  %7d  %12d  %13d  %12s  %13s\n",
+               item->target_id,
+               item->mark_count,
+               item->min_range_m,
+               item->max_range_m,
+               azimuth_text,
+               speed_text);
+    }
+
+    printf("\n");
+
+    if (shown_count > 0) {
+        const TargetAnalysis *closest = &filtered[0];
+
+        printf("Ближайшая цель: ID=%d, минимальная дальность %d м (время %d мс)\n",
+               closest->target_id,
+               closest->min_range_m,
+               closest->min_range_time_ms);
+        printf("\n");
+    }
+
+    printf("Примечание: скорость вычислена только для целей с 3+ отметками.\n");
+    printf("Знак: \"−\" — цель удаляется, \"+\" — цель сближается.\n");
 }
