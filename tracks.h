@@ -24,6 +24,22 @@ typedef struct {
     int duplicate_count;
 } TrackCollection;
 
+typedef struct {
+    int target_id;
+    int mark_count;
+    int min_range_m;
+    int max_range_m;
+    int min_range_time_ms;
+    double avg_azimuth_deg;
+    int has_speed;
+    double speed_mps;
+} TargetAnalysis;
+
+typedef struct {
+    TargetAnalysis items[MAX_TARGETS];
+    int count;
+} AnalysisReport;
+
 typedef enum {
     PARSE_MARK_OK,
     PARSE_MARK_SKIP,
@@ -40,5 +56,6 @@ typedef enum {
 ParseMarkResult parse_radar_mark_line(const char *line, RadarMark *mark);
 void init_track_collection(TrackCollection *collection);
 AddMarkResult add_radar_mark(TrackCollection *collection, const RadarMark *mark);
+void prepare_track_analysis(TrackCollection *collection, AnalysisReport *report);
 
 #endif

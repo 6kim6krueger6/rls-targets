@@ -22,6 +22,7 @@ int main(int argc, char *argv[])
     int accepted_count = 0;
     int skipped_count = 0;
     TrackCollection tracks;
+    AnalysisReport report;
 
     if (argc != 2) {
         fprintf(stderr, "Ошибка: укажите ровно один файл журнала\n");
@@ -95,6 +96,8 @@ int main(int argc, char *argv[])
     if (accepted_count == 0) {
         return 2;
     }
+
+    prepare_track_analysis(&tracks, &report);
 
     return 0;
 }
